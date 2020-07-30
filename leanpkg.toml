@@ -1,0 +1,8 @@
+[package]
+name = "nat-deduction"
+version = "0.1"
+lean_version = "leanprover-community/lean:3.17.1"
+path = "src"
+
+[dependencies]
+mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "863a389909a878ce235bc56ec92bf9632414ed32"}
