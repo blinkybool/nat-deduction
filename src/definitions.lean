@@ -6,6 +6,7 @@ namespace nat_deduction
 
 /-- The type of Formulas, defined inductively
 -/
+@[derive decidable_eq]
 inductive Form : Type
 -- Atomic Formulas are introduced via natural numbers (atom 0, atom 1, atom 2)
 | atom : ℕ → Form

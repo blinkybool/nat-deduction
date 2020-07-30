@@ -46,7 +46,7 @@ end
 
 theorem provable.neg_iff : X ⊢I (¬ A) ↔ X ∪ {A} ⊢I ⊥ := provable.imp_iff
 
-theorem provable.weakening (Y : set Form) : X ⊢I A → X ∪ Y ⊢I A :=
+theorem provable.weakening : X ⊢I A → X ∪ Y ⊢I A :=
   λ ⟨XdA⟩, ⟨WEAK XdA⟩
 
 theorem proof_from_or_iff : X ∪ {A ⋁ B} ⊢I C ↔ X ∪ {A} ⊢I C ∧ X ∪ {B} ⊢I C := sorry
@@ -94,59 +94,59 @@ case assumption :
 case and_intro : X A B dXA dXB ih₁ ih₂
   { rcases ih₁ with ⟨XA', AsubX, XA'pA⟩,
     rcases ih₂ with ⟨XB', BsubX, XB'pB⟩,
-    constructor, swap, exact XA' ∪ XB',
-    split, exact set.union_subset AsubX BsubX,
-    split,
-    exact set.finite.union finXA' finXB',
-    rw proof_and_iff, split; apply @deduction.weakening _ _ (XA' ∪ XB'),
-    constructor,
-    apply ⋀I,
-    apply WEAK _ dXA'A, apply set.subset_union_left,
-    apply WEAK _ dXB'B, apply set.subset_union_right },
--- case and_left : 
---   { rcases ih with ⟨X', ⟨subX, X'pAB⟩⟩,
---     use X',
---     tidy,
---     apply ⋀E₁ A B, assumption },
--- case and_right : X A B
---   { rcases ih with ⟨X', ⟨subX, ⟨finX', pX'AB⟩⟩⟩,
---     cases pX'AB with dX'AB,
---     use X',
---     tidy,
---     apply ⋀E₂ A B, assumption },
--- case imp_intro : X A B
---   { rcases ih with ⟨X', ⟨subX, ⟨finX', pX'B⟩⟩⟩,
---     cases pX'B with dX'B,
---     use X' \ {A},
---     split,
---       rw set.diff_subset_iff, rw set.union_comm, assumption,
---     split,
---       apply set.finite.subset finX', obviously,
---     apply ⟹I,
---     apply WEAK _ dX'B,
---     apply set.subset_diff_union },
--- case imp_elim : X A B dXAB dA ihAB ihA
---   { rcases ihAB with ⟨X₁, ⟨sub₁X, ⟨finX₁, ⟨dX₁AB⟩⟩⟩⟩,
---     rcases ihA with ⟨X₂, ⟨sub₂X, ⟨finX₂, ⟨dX₂A⟩⟩⟩⟩,
---     use X₁ ∪ X₂,
---     split, exact set.union_subset sub₁X sub₂X,
---     split, exact set.finite.union finX₁ finX₂,
---     constructor,
---     apply ⟹E A,
---     apply WEAK _ dX₁AB, apply set.subset_union_left,
---     apply WEAK _ dX₂A, apply set.subset_union_right },
--- case or_left : X A B
---   { rcases ih with ⟨X', ⟨subX, ⟨finX', ⟨dX'A⟩⟩⟩⟩,
---     use X',
---     tidy,
---     exact ⋁I₁ A B dX'A
---     },
--- case or_right : X A B
---   { rcases ih with ⟨X', ⟨subX, ⟨finX', ⟨dX'B⟩⟩⟩⟩,
---     use X',
---     tidy,
---     exact ⋁I₂ A B dX'B
---     },
+    use XA' ∪ XB',
+    split, simp, split; assumption,
+    rw provable.and_iff, simp, split,
+    apply provable.weakening, assumption,
+    rw set.union_comm,
+    apply provable.weakening, assumption },
+  case and_left : 
+    { rcases ih with ⟨X', subX, X'pAB⟩,
+      use X',
+      rw provable.and_iff at X'pAB,
+      tidy },
+  case and_right : 
+    { rcases ih with ⟨X', subX, X'pAB⟩,
+      use X',
+      rw provable.and_iff at X'pAB,
+      tidy },
+case imp_intro : X A B
+  { rcases ih with ⟨X', subX, pX'B⟩,
+    use X' \ {A},
+    split, simp, suffices : insert A X = X ∪ {A}, rw this, assumption, simp,
+    rw provable.imp_iff,
+    suffices : ↑(X' \ {A}) ∪ {A} = ↑X' ∪ {A}, rw this,
+    apply provable.weakening pX'B, simp,
+    obviously, exact tt,
+    },
+case imp_elim : X A B dXAB dA ihAB ihA
+  { rcases ihAB with ⟨X₁, sub₁X, dX₁AB⟩,
+    rcases ihA with ⟨X₂, sub₂X, dX₂A⟩,
+    use X₁ ∪ X₂, simp,
+    split, split; assumption,
+    rw provable.imp_iff at dX₁AB, sorry,
+  },
+    -- split, exact set.finite.union finX₁ finX₂,
+    -- constructor,
+    -- apply ⟹E A,
+    -- apply WEAK _ dX₁AB, apply set.subset_union_left,
+    -- apply WEAK _ dX₂A, apply set.subset_union_right },
+case or_left : X A B
+  { rcases ih with ⟨X', subX, dX'A⟩,
+    use X',
+    split, assumption,
+    sorry,
+    -- tidy,
+    -- exact ⋁I₁ A B dX'A
+    },
+case or_left : X A B
+  { rcases ih with ⟨X', subX, dX'A⟩,
+    use X',
+    split, assumption,
+    sorry,
+    -- tidy,
+    -- exact ⋁I₁ A B dX'A
+    },
 -- case or_elim : X A B C _ _ _ ih₁ ih₂ ih₃
 --   {
 --     rcases ih₁ with ⟨X₁, ⟨sub₁X, ⟨finX₁, ⟨dX₁AB⟩⟩⟩⟩,
