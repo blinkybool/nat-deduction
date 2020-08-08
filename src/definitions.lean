@@ -1,4 +1,8 @@
-import data.finset
+/-
+Foundational definitions for natural deduction
+(Mostly from Chapter 2)
+Author: Billy Price
+-/
 import tactic
 
 namespace nat_deduction

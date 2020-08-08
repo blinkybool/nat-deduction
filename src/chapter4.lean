@@ -1,4 +1,5 @@
-/- Chapter 4: Facts about Proofs and Provability
+/-
+Chapter 4: Facts about Proofs and Provability
 Author: Billy Price
 -/
 import definitions
