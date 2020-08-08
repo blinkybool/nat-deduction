@@ -1,7 +1,7 @@
-/- Solutions to Chapter 3 exercises
+/-
+Chapter 3: More Connectives: Not & Or
 Author: Billy Price
 -/
-
 import definitions
 
 namespace nat_deduction

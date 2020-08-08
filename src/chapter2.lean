@@ -1,7 +1,7 @@
-/- Solutions to Chapter 2 exercises
+/-
+Chapter 2: Connectives: And & If
 Author: Billy Price
 -/
-
 import definitions
 
 namespace nat_deduction
@@ -105,14 +105,6 @@ begin
   apply ⟹E A,
   apply WEAK dAAB,
   all_goals {assump}
-end
-
-example : X ∪ {B} ≻ C → X ∪ {A} ≻ B → X ∪ {A} ≻ C :=
-begin
-  intros dC,
-  induction' dC with Y; intro dAB,
-  case weakening : { apply ih _ dAB, sorry },
-  repeat { sorry }
 end
 
 end nat_deduction

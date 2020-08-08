@@ -1,29 +1,36 @@
-/- Chapter 4: Formalising Provability
-Author: Billy
+/- Chapter 4: Facts about Proofs and Provability
+Author: Billy Price
 -/
 import definitions
+import tactic.induction
 
 namespace nat_deduction
 
+-- The intuitionistic provability relation on sets of Formulas and Formulas
+-- The sole constructor takes a deduction of the appropriate type
 inductive provable (X : set Form) (A : Form) : Prop
 | mk : X ≻ A → provable
 
 infix ` ⊢I `:60 := provable
 
-
 variables {A B C : Form}
 variables {X Y : set Form}
 
-def cut_deduction (A : Form) : (X ∪ {A} ≻ B) → (Y ≻ A) → (X ∪ Y ≻ B) := sorry
--- begin
---   intro YAdB,
---   suffices : ∀ {X Y}, (Y ≻ A) → (X ∪ Y ≻ B), exact this,
---   induction' YAdB,
---   case weakening : X' B X'subYA XdB { intros X Y, apply ih, sorry, sorry},
---   case assumption : B elem { intros X Y, sorry },
---   case and_intro : B C _ _ ihB ihC { intros X Y XdA, apply ⋀I, apply ihB, assumption, apply ihC, assumption, },
---   repeat {sorry}
--- end
+-- Constructs a non-normalised deduction mimicking the cut rule
+def cut_deduction (A : Form) : (X ∪ {A} ≻ B) → (Y ≻ A) → (X ∪ Y ≻ B) :=
+begin
+  intros XAdB YdA,
+  apply ⟹E A,
+  apply ⟹I,
+    rw [set.union_assoc,
+        set.union_comm,
+        set.union_assoc,
+        set.union_comm _ X],
+    exact WEAK' XAdB,
+  exact WEAK' YdA
+end
+
+/- The following theorems lift the deduction rules to provability equivalences -/
 
 theorem provable.and_iff : X ⊢I (A ⋀ B) ↔ (X ⊢I A) ∧ (X ⊢I B) :=
 begin
@@ -36,42 +43,144 @@ end
 theorem provable.imp_iff : X ⊢I (A ⟹ B) ↔ X ∪ {A} ⊢I B :=
 begin
   split,
-    { rintro ⟨XdAB⟩,
-      constructor,
-      apply ⟹E A,
-      apply WEAK XdAB,
-      assump},
+    { rintro ⟨XdAB⟩, exact ⟨⟹E A (WEAK XdAB) (by assump)⟩ },
     { rintro ⟨XAdB⟩, exact ⟨⟹I XAdB⟩ }
 end
 
 theorem provable.neg_iff : X ⊢I (¬ A) ↔ X ∪ {A} ⊢I ⊥ := provable.imp_iff
 
-theorem provable.weakening : X ⊢I A → X ∪ Y ⊢I A :=
-  λ ⟨XdA⟩, ⟨WEAK XdA⟩
+theorem provable.explosion : X ⊢I ⊥ → X ⊢I A :=
+  λ ⟨XdF⟩, ⟨⊥E XdF⟩
 
-theorem proof_from_or_iff : X ∪ {A ⋁ B} ⊢I C ↔ X ∪ {A} ⊢I C ∧ X ∪ {B} ⊢I C := sorry
--- begin
---   split,
---     { rintro ⟨XABdC⟩,
---       split;constructor;
---       apply cut_deduction (A ⋁ B) XABdC,
---       apply ⋁I₁, assump,
---       apply ⋁I₂, assump
---       },
---     { rintro ⟨⟨XAdC⟩,⟨XBdC⟩⟩, constructor,
---       apply ⋁E A B, assump,
---       rw [set.union_assoc, set.union_comm _ {A}, ←set.union_assoc],
---       apply WEAK XAdC,
---       rw [set.union_assoc, set.union_comm _ {B}, ←set.union_assoc],
---       apply WEAK XBdC }
--- end
+theorem provable.cut {X Y} (A : Form) {B} : X ∪ {A} ⊢I B → Y ⊢I A → X ∪ Y ⊢I B :=
+  λ ⟨XAdB⟩ ⟨YdA⟩, by constructor; apply cut_deduction; assumption
+
+theorem proof_from_or_iff : X ∪ {A ⋁ B} ⊢I C ↔ X ∪ {A} ⊢I C ∧ X ∪ {B} ⊢I C :=
+begin
+  split,
+    { rintro ⟨XdAB⟩,
+      split; apply provable.cut (A ⋁ B) ⟨XdAB⟩; constructor,
+      apply ⋁I₁, assump, apply ⋁I₂, assump },
+    { rintro ⟨⟨XdA⟩,⟨XdB⟩⟩, constructor, apply ⋁E A B, assump,
+      all_goals {rw [set.union_comm, ←set.union_assoc, set.union_comm _ X], apply WEAK, assumption } }
+end
 
 theorem provable.refl {A : Form} : {A} ⊢I A := ⟨by assump⟩
 
-theorem provable.cut {X Y} (A : Form) {B} : X ∪ {A} ⊢I B → Y ⊢I A → X ∪ Y ⊢I B := sorry
+/-- Cuts out the minimal finite set of assumptions needed in any deduction
+and produces the compactified proof -/
+def compactify {X A} : X ≻ A → { d : Σ X' : finset Form, ↑X' ≻ A // ↑d.1 ⊆ X } :=
+begin
+  intro dXA,
+  induction' dXA,
+  case weakening :
+    { rcases ih with ⟨⟨X', X'dA⟩, subX⟩, use X', assumption,
+      apply set.subset_union_of_subset_left, assumption },
+  case assumption : { use {A}, tidy, assump },
+  case and_intro : X A B dXA dXB ih₁ ih₂
+    { rcases ih₁ with ⟨⟨X₁, X₁dA⟩⟩,
+      rcases ih₂ with ⟨⟨X₂, X₂dB⟩⟩,
+      use (X₁ ∪ X₂),
+      rw finset.coe_union,
+      apply ⋀I,
+        { exact WEAK X₁dA }, { rw set.union_comm, exact WEAK X₂dB },
+      tidy
+    },
+  case and_left : { rcases ih with ⟨⟨X', X'dAB⟩⟩, use X', exact ⋀E₁ _ _ X'dAB, tidy },
+  case and_right : { rcases ih with ⟨⟨X', X'dAB⟩⟩, use X', exact ⋀E₂ _ _ X'dAB, tidy },
+  case imp_intro : X A B
+    { rcases ih with ⟨⟨X', X'dB⟩⟩, use X' \ {A};
+      simp only [finset.coe_sdiff, finset.coe_singleton] at *,
+      apply ⟹I,
+      rw set.diff_union_self,
+      exact WEAK X'dB,
+      rwa [set.diff_subset_iff, set.union_comm] },
+  case imp_elim : X A B dXAB dA ihAB ihA
+    { rcases ihAB with ⟨⟨X₁, X₁dAB⟩⟩,
+      rcases ihA with ⟨⟨X₂, X₂dA⟩⟩,
+      use X₁ ∪ X₂; simp [finset.coe_union] at *,
+      exact ⟹E A (WEAK X₁dAB) (WEAK' X₂dA),
+      tidy },  
+  case or_left : X A B { rcases ih with ⟨⟨X', X'dA⟩⟩, use X', exact ⋁I₁ X'dA, tidy },
+  case or_right : X A B { rcases ih with ⟨⟨X', X'dA⟩⟩, use X', exact ⋁I₂ X'dA, tidy },
+  case or_elim : X A B C _ _ _ ih₁ ih₂ ih₃
+  {
+    rcases ih₁ with ⟨⟨X₁, dX₁AB⟩, sub₁X⟩,
+    rcases ih₂ with ⟨⟨X₂, dX₂C⟩, sub₂X⟩,
+    rcases ih₃ with ⟨⟨X₃, dX₃C⟩, sub₃X⟩,
+    use X₁ ∪ (X₂ \ {A}) ∪ (X₃ \ {B}); simp [finset.coe_union, finset.coe_sdiff, finset.coe_singleton],
+    apply ⋁E A B (WEAK dX₁AB),
+      { have : ↑X₁ ∪ (↑X₂ \ {A} ∪ ↑X₃ \ {B}) ∪ {A} = ↑X₂ ∪ ({A} ∪ (↑X₃ \ {B} ∪ ↑X₁)),
+          { rw [@set.union_assoc Form,
+                set.union_assoc _ _ {A},
+                set.union_comm _ {A},
+                ←set.union_assoc _ {A},
+                set.diff_union_self,
+                set.union_comm,
+                set.union_assoc,
+                set.union_assoc] },
+        rw this,
+        exact WEAK dX₂C },
+      { have : ↑X₁ ∪ (↑X₂ \ {A} ∪ ↑X₃ \ {B}) ∪ {B} = ↑X₃ ∪ ({B} ∪ (↑X₁ ∪ ↑X₂ \ {A})),
+          { rw [ @set.union_assoc Form,
+                  set.union_assoc,
+                  set.diff_union_self,
+                  ←set.union_assoc,
+                  set.union_comm,
+                  set.union_assoc ] },
+        rw this,
+        exact WEAK dX₃C },
+    tidy,
+  },
+  case falsum : { rcases ih with ⟨⟨X',X'dF⟩⟩, use X', apply ⊥E X'dF, tidy },
+end
 
+/--Theorem 2 of Chapter 4-/
+theorem compactness {X : set Form} {A : Form} : X ⊢I A → ∃ X' : finset Form, ↑X' ⊆ X ∧ ↑X' ⊢I A :=
+  λ ⟨XdA⟩, by { rcases compactify XdA with ⟨⟨X', X'dA⟩, X'subX⟩, use X', split, assumption, exact ⟨X'dA⟩ }
+
+/--Definition 11 of Chapter 4-/
+def inconsistent (X : set Form) : Prop := X ⊢I ⊥
+
+/- TODO: Formalise detour formulas and detour sequences  - How??? -/
+
+def subformulas : Form → set Form
+| ⊥ := {⊥}
+| (n : ℕ) := {n}
+| (A ⋀ B) := subformulas A ∪ subformulas B ∪ {A ⋀ B}
+| (A ⋁ B) := subformulas A ∪ subformulas B ∪ {A ⋁ B}
+| (A ⟹ B) := subformulas A ∪ subformulas B ∪ {A ⟹ B}
+
+def subformula (A : Form) := {B : Form // B ∈ subformulas A}
+
+section
+open deduction
+
+/--The formulas which *appear* in a written out proof d : X ≻ A
+Recursively define as the formulas above the last rule with the conclusion
+inserted-/
+def deduction.formulas : Π {X A}, X ≻ A → set Form
+| _ A (@weakening X _ Y XdA) := deduction.formulas XdA
+| X A (assumption mA) := {A}
+| X _ (@and_intro _ A B XdA XdB) := deduction.formulas XdA ∪ deduction.formulas XdB ∪ {A ⋀ B}
+| X _ (@and_left _ A B XdAB) := deduction.formulas XdAB ∪ {A}
+| X _ (@and_right _ A B XdAB) := deduction.formulas XdAB ∪ {B}
+| X _ (@imp_intro _ A B XAdB) := deduction.formulas XAdB ∪ {A ⟹ B}
+| X B (@imp_elim _ A _ XdAB XdA) := deduction.formulas XdAB ∪ deduction.formulas XdA ∪ {B}
+| X _ (@or_left _ A B XdA) := deduction.formulas XdA ∪ {A ⋁ B}
+| X _ (@or_right _ A B XdB) := deduction.formulas XdB ∪ {A ⋁ B}
+| X C (@or_elim _ A B _ XdAB XAdC XBdC) := deduction.formulas XdAB ∪ deduction.formulas XAdC ∪ deduction.formulas XBdC ∪ {C}
+| X A (@falsum _ _ XdF) := deduction.formulas XdF ∪ {A}
+
+end
+
+/--Definition 20-/
+def subformula_property {X A} : X ≻ A → Prop := λ XdA, XdA.formulas ⊆ X ∪ {A}
+
+/-- Lemma used in preorder proof-/
 lemma provable.premise_contraction {X A B} : X ∪ (X ∪ {A}) ⊢I B → X ∪ {A} ⊢I B := by obviously
 
+/--Any set of formulas induces a preorder on Formulas,-/
 instance provable.preorder (X : set Form): preorder Form :=
 { le := λ A B, X ∪ {A} ⊢I B,
   lt := λ A B, X ∪ {A} ⊢I B ∧ ¬ (X ∪ {B} ⊢I A),
@@ -79,254 +188,18 @@ instance provable.preorder (X : set Form): preorder Form :=
   le_trans := λ A B C ApB BpC, provable.premise_contraction $ provable.cut B BpC ApB,
   lt_iff_le_not_le := λ A B, by refl }
 
-def compactify {X A} : X ≻ A → {X' : finset Form // ↑X' ⊆ X ∧ ↑X' ⊢I A } :=
-begin
-intro dXA,
-induction' dXA,
-case weakening :
-  { rcases ih with ⟨X', subX, X'pA⟩,
-    use X',
-    split, apply set.subset_union_of_subset_left,
-    tidy },
-case assumption :
-  { use {A}, tidy,
-    assump },
-case and_intro : X A B dXA dXB ih₁ ih₂
-  { rcases ih₁ with ⟨XA', AsubX, XA'pA⟩,
-    rcases ih₂ with ⟨XB', BsubX, XB'pB⟩,
-    use XA' ∪ XB',
-    split, simp, split; assumption,
-    rw provable.and_iff, simp, split,
-    apply provable.weakening, assumption,
-    rw set.union_comm,
-    apply provable.weakening, assumption },
-  case and_left : 
-    { rcases ih with ⟨X', subX, X'pAB⟩,
-      use X',
-      rw provable.and_iff at X'pAB,
-      tidy },
-  case and_right : 
-    { rcases ih with ⟨X', subX, X'pAB⟩,
-      use X',
-      rw provable.and_iff at X'pAB,
-      tidy },
-case imp_intro : X A B
-  { rcases ih with ⟨X', subX, pX'B⟩,
-    use X' \ {A},
-    split, simp, suffices : insert A X = X ∪ {A}, rw this, assumption, simp,
-    rw provable.imp_iff,
-    suffices : ↑(X' \ {A}) ∪ {A} = ↑X' ∪ {A}, rw this,
-    apply provable.weakening pX'B, simp,
-    obviously, exact tt,
-    },
-case imp_elim : X A B dXAB dA ihAB ihA
-  { rcases ihAB with ⟨X₁, sub₁X, dX₁AB⟩,
-    rcases ihA with ⟨X₂, sub₂X, dX₂A⟩,
-    use X₁ ∪ X₂, simp,
-    split, split; assumption,
-    rw provable.imp_iff at dX₁AB, sorry,
-  },
-    -- split, exact set.finite.union finX₁ finX₂,
-    -- constructor,
-    -- apply ⟹E A,
-    -- apply WEAK _ dX₁AB, apply set.subset_union_left,
-    -- apply WEAK _ dX₂A, apply set.subset_union_right },
-case or_left : X A B
-  { rcases ih with ⟨X', subX, dX'A⟩,
-    use X',
-    split, assumption,
-    sorry,
-    -- tidy,
-    -- exact ⋁I₁ A B dX'A
-    },
-case or_left : X A B
-  { rcases ih with ⟨X', subX, dX'A⟩,
-    use X',
-    split, assumption,
-    sorry,
-    -- tidy,
-    -- exact ⋁I₁ A B dX'A
-    },
--- case or_elim : X A B C _ _ _ ih₁ ih₂ ih₃
---   {
---     rcases ih₁ with ⟨X₁, ⟨sub₁X, ⟨finX₁, ⟨dX₁AB⟩⟩⟩⟩,
---     rcases ih₂ with ⟨X₂, ⟨sub₂X, ⟨finX₂, ⟨dX₂C⟩⟩⟩⟩,
---     rcases ih₃ with ⟨X₃, ⟨sub₃X, ⟨finX₃, ⟨dX₃C⟩⟩⟩⟩,
---     use X₁ ∪ (X₂ \ {A}) ∪ (X₃ \ {B}),
---     split,
---       apply set.union_subset,
---         apply set.union_subset sub₁X, rw set.diff_subset_iff, rw set.union_comm, assumption,
---         rw set.diff_subset_iff, rw set.union_comm, assumption,
---     split,
---       apply @set.finite.subset _ (X₁ ∪ X₂ ∪ X₃),
---       apply set.finite.union,
---       apply set.finite.union,
---       assumption,
---       assumption,
---       assumption,
---       apply set.union_subset,
---       apply set.union_subset,
---       rw set.union_assoc,
---       apply set.subset_union_left,
---       rw set.diff_subset_iff,
---       apply set.subset_union_of_subset_right,
---       apply set.subset_union_of_subset_left,
---       apply set.subset_union_right,
---       rw set.diff_subset_iff,
---       apply set.subset_union_of_subset_right,
---       apply set.subset_union_right,
---       constructor,
---       apply ⋁E A B,
---       apply WEAK _ dX₁AB, rw set.union_assoc, apply set.subset_union_left,
---       apply WEAK _ dX₂C, 
---         rw set.union_assoc,
---         rw set.union_assoc,
---         apply set.subset_union_of_subset_right,
---         rw set.union_comm (X₃ \ {B}) {A},
---         rw ←set.union_assoc ,
---         apply set.subset_union_of_subset_left,
---         apply set.subset_diff_union,
---       apply WEAK _ dX₃C,
---         rw set.union_assoc,
---         rw set.union_assoc,
---         apply set.subset_union_of_subset_right,
---         apply set.subset_union_of_subset_right,
---         apply set.subset_diff_union
---    },
--- case falsum :
---   { rcases ih with ⟨X', ⟨subX, ⟨finX', ⟨dX'⟩⟩⟩⟩,
---     use X',
---     tidy,
---     exact ⊥E dX'
---   }
-end
+/- Chapter 6 Exercises -/
+section exercises
 
-theorem compactness {X : set Form} {A : Form} : X ⊢I A → ∃ X' ⊆ X, X'.finite ∧ X' ⊢I A :=
-begin
-  intro pXA,
-  cases pXA with dXA,
-  induction' dXA,
-  case weakening :
-    { rcases ih with ⟨X', ⟨subX, ⟨finX',dX'A⟩⟩⟩,
-      use X', split, apply set.subset_union_of_subset_left,
-      tidy },
-  case assumption :
-    { use {A}, tidy,
-      assump },
-  case and_intro : X A B dXA dXB ih₁ ih₂
-    { rcases ih₁ with ⟨XA', ⟨AsubX, ⟨finXA', pXA'A⟩⟩⟩,
-      rcases ih₂ with ⟨XB', ⟨BsubX, ⟨finXB', pXB'B⟩⟩⟩,
-      cases pXA'A with dXA'A,
-      cases pXB'B with dXB'B,
-      use XA' ∪ XB',
-      split, exact set.union_subset AsubX BsubX,
-      split,
-      exact set.finite.union finXA' finXB',
-      constructor,
-      apply ⋀I,
-      apply WEAK dXA'A,
-      rw set.union_comm,
-      apply WEAK dXB'B },
-  case and_left : 
-    { rcases ih with ⟨X', ⟨subX, ⟨finX', pX'AB⟩⟩⟩,
-      cases pX'AB with dX'AB,
-      use X',
-      tidy,
-      apply ⋀E₁ A B, assumption },
-  case and_right : X A B
-    { rcases ih with ⟨X', ⟨subX, ⟨finX', pX'AB⟩⟩⟩,
-      cases pX'AB with dX'AB,
-      use X',
-      tidy,
-      apply ⋀E₂ A B, assumption },
-  case imp_intro : X A B
-    { rcases ih with ⟨X', ⟨subX, ⟨finX', pX'B⟩⟩⟩,
-      cases pX'B with dX'B,
-      use X' \ {A},
-      split,
-        rw set.diff_subset_iff, rw set.union_comm, assumption,
-      split,
-        apply set.finite.subset finX', obviously,
-      apply ⟹I,
-      suffices : X' \ {A} ∪ {A} = X' ∪ {A}, rw this,
-      apply WEAK dX'B,
-      obviously },
-  case imp_elim : X A B dXAB dA ihAB ihA
-    { rcases ihAB with ⟨X₁, ⟨sub₁X, ⟨finX₁, ⟨dX₁AB⟩⟩⟩⟩,
-      rcases ihA with ⟨X₂, ⟨sub₂X, ⟨finX₂, ⟨dX₂A⟩⟩⟩⟩,
-      use X₁ ∪ X₂,
-      split, exact set.union_subset sub₁X sub₂X,
-      split, exact set.finite.union finX₁ finX₂,
-      constructor,
-      apply ⟹E A,
-      apply WEAK dX₁AB,
-      rw set.union_comm,
-      apply WEAK dX₂A },
-  case or_left : X A B
-    { rcases ih with ⟨X', ⟨subX, ⟨finX', ⟨dX'A⟩⟩⟩⟩,
-      use X',
-      tidy,
-      exact ⋁I₁ A B dX'A
-      },
-  case or_right : X A B
-    { rcases ih with ⟨X', ⟨subX, ⟨finX', ⟨dX'B⟩⟩⟩⟩,
-      use X',
-      tidy,
-      exact ⋁I₂ A B dX'B
-      },
-  case or_elim : X A B C _ _ _ ih₁ ih₂ ih₃
-    {
-      rcases ih₁ with ⟨X₁, ⟨sub₁X, ⟨finX₁, ⟨dX₁AB⟩⟩⟩⟩,
-      rcases ih₂ with ⟨X₂, ⟨sub₂X, ⟨finX₂, ⟨dX₂C⟩⟩⟩⟩,
-      rcases ih₃ with ⟨X₃, ⟨sub₃X, ⟨finX₃, ⟨dX₃C⟩⟩⟩⟩,
-      use X₁ ∪ (X₂ \ {A}) ∪ (X₃ \ {B}),
-      split,
-        apply set.union_subset,
-          apply set.union_subset sub₁X, rw set.diff_subset_iff, rw set.union_comm, assumption,
-          rw set.diff_subset_iff, rw set.union_comm, assumption,
-      split,
-        apply @set.finite.subset _ (X₁ ∪ X₂ ∪ X₃),
-        apply set.finite.union,
-        apply set.finite.union,
-        assumption,
-        assumption,
-        assumption,
-        apply set.union_subset,
-        apply set.union_subset,
-        rw set.union_assoc,
-        apply set.subset_union_left,
-        rw set.diff_subset_iff,
-        apply set.subset_union_of_subset_right,
-        apply set.subset_union_of_subset_left,
-        apply set.subset_union_right,
-        rw set.diff_subset_iff,
-        apply set.subset_union_of_subset_right,
-        apply set.subset_union_right,
-        constructor,
-        apply ⋁E A B,
-        rw set.union_assoc,
-        apply WEAK dX₁AB,
-        rw set.union_assoc,
-        rw set.union_assoc,
-        apply set.subset_union_of_subset_right,
-        rw set.union_comm (X₃ \ {B}) {A},
-        rw ←set.union_assoc,
-        apply set.subset_diff_union,
-        apply WEAK dX₂C, 
-          apply set.subset_union_of_subset_left,
-        apply WEAK _ dX₃C,
-          rw set.union_assoc,
-          rw set.union_assoc,
-          apply set.subset_union_of_subset_right,
-          apply set.subset_union_of_subset_right,
-          apply set.subset_diff_union
-     },
-  case falsum :
-    { rcases ih with ⟨X', ⟨subX, ⟨finX', ⟨dX'⟩⟩⟩⟩,
-      use X',
-      tidy,
-      exact ⊥E dX'
-    }
-end
+variables {p q r : ℕ}
+
+/-Question 1-/
+
+example : inconsistent {p,q,¬(p ⋀ q)} :=
+  ⟨¬E (p ⋀ q) (by assump) (by apply ⋀I; assump)⟩
+
+-- TODO: finish chapter 4 exercises
+
+end exercises
 
 end nat_deduction
