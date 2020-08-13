@@ -80,8 +80,8 @@ def deduction.neg_intro {X A}: X ∪ {A} ≻ ⊥ → X ≻ ¬A := deduction.imp_
 def deduction.neg_elim {X} (A) : X ≻ ¬A → X ≻ A → X ≻ ⊥ := deduction.imp_elim A
 
 -- Derived rules which commute set unions
-def deduction.imp_intro' {X A B} : deduction ({A} ∪ X) B → deduction X (A ⟹ B) := by {rw set.union_comm, exact deduction.imp_intro}
-def deduction.weakening' {X A Y} : deduction X A → deduction (Y ∪ X) A := by {rw set.union_comm, exact deduction.weakening}
+def deduction.imp_intro' {X A B} : {A} ∪ X ≻ B → X ≻ A ⟹ B := by {rw set.union_comm, exact deduction.imp_intro}
+def deduction.weakening' {X A Y} : X ≻ A → Y ∪ X ≻ A := by {rw set.union_comm, exact deduction.weakening}
 
 -- Shorthand for deduction rules
 notation `WEAK` := deduction.weakening
