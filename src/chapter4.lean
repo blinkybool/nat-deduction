@@ -27,8 +27,8 @@ begin
         set.union_comm,
         set.union_assoc,
         set.union_comm _ X],
-    exact WEAK' XAdB,
-  exact WEAK' YdA
+    exact weaken_union_left XAdB,
+  exact weaken_union_left YdA
 end
 
 /- The following theorems lift the deduction rules to provability equivalences -/
@@ -44,7 +44,7 @@ end
 theorem provable.imp_iff : X ⊢I (A ⟹ B) ↔ X ∪ {A} ⊢I B :=
 begin
   split,
-    { rintro ⟨XdAB⟩, exact ⟨⟹E A (WEAK XdAB) (by assump)⟩ },
+    { rintro ⟨XdAB⟩, exact ⟨⟹E A (weaken_union_right XdAB) (by assump)⟩ },
     { rintro ⟨XAdB⟩, exact ⟨⟹I XAdB⟩ }
 end
 
@@ -63,7 +63,7 @@ begin
       split; apply provable.cut (A ⋁ B) ⟨XdAB⟩; constructor,
       apply ⋁I₁, assump, apply ⋁I₂, assump },
     { rintro ⟨⟨XdA⟩,⟨XdB⟩⟩, constructor, apply ⋁E A B, assump,
-      all_goals {rw [set.union_comm, ←set.union_assoc, set.union_comm _ X], apply WEAK, assumption } }
+      all_goals {rw [set.union_comm, ←set.union_assoc, set.union_comm _ X], apply weaken_union_right, assumption } }
 end
 
 theorem provable.refl {A : Form} : {A} ⊢I A := ⟨by assump⟩
@@ -74,9 +74,6 @@ def compactify {X A} : X ≻ A → { d : Σ X' : finset Form, ↑X' ≻ A // ↑
 begin
   intro dXA,
   induction' dXA,
-  case weakening :
-    { rcases ih with ⟨⟨X', X'dA⟩, subX⟩, use X', assumption,
-      apply set.subset_union_of_subset_left, assumption },
   case assumption : { use {A}, tidy, assump },
   case and_intro : X A B dXA dXB ih₁ ih₂
     { rcases ih₁ with ⟨⟨X₁, X₁dA⟩⟩,
@@ -84,7 +81,7 @@ begin
       use (X₁ ∪ X₂),
       rw finset.coe_union,
       apply ⋀I,
-        { exact WEAK X₁dA }, { rw set.union_comm, exact WEAK X₂dB },
+        { exact weaken_union_right X₁dA }, { rw set.union_comm, exact weaken_union_right X₂dB },
       tidy
     },
   case and_left : { rcases ih with ⟨⟨X', X'dAB⟩⟩, use X', exact ⋀E₁ _ _ X'dAB, tidy },
@@ -94,13 +91,13 @@ begin
       simp only [finset.coe_sdiff, finset.coe_singleton] at *,
       apply ⟹I,
       rw set.diff_union_self,
-      exact WEAK X'dB,
+      exact weaken_union_right X'dB,
       rwa [set.diff_subset_iff, set.union_comm] },
   case imp_elim : X A B dXAB dA ihAB ihA
     { rcases ihAB with ⟨⟨X₁, X₁dAB⟩⟩,
       rcases ihA with ⟨⟨X₂, X₂dA⟩⟩,
       use X₁ ∪ X₂; simp [finset.coe_union] at *,
-      exact ⟹E A (WEAK X₁dAB) (WEAK' X₂dA),
+      exact ⟹E A (weaken_union_right X₁dAB) (weaken_union_left X₂dA),
       tidy },  
   case or_left : X A B { rcases ih with ⟨⟨X', X'dA⟩⟩, use X', exact ⋁I₁ X'dA, tidy },
   case or_right : X A B { rcases ih with ⟨⟨X', X'dA⟩⟩, use X', exact ⋁I₂ X'dA, tidy },
@@ -110,7 +107,7 @@ begin
     rcases ih₂ with ⟨⟨X₂, dX₂C⟩, sub₂X⟩,
     rcases ih₃ with ⟨⟨X₃, dX₃C⟩, sub₃X⟩,
     use X₁ ∪ (X₂ \ {A}) ∪ (X₃ \ {B}); simp [finset.coe_union, finset.coe_sdiff, finset.coe_singleton],
-    apply ⋁E A B (WEAK dX₁AB),
+    apply ⋁E A B (weaken_union_right dX₁AB),
       { have : ↑X₁ ∪ (↑X₂ \ {A} ∪ ↑X₃ \ {B}) ∪ {A} = ↑X₂ ∪ ({A} ∪ (↑X₃ \ {B} ∪ ↑X₁)),
           { rw [@set.union_assoc Form,
                 set.union_assoc _ _ {A},
@@ -121,7 +118,7 @@ begin
                 set.union_assoc,
                 set.union_assoc] },
         rw this,
-        exact WEAK dX₂C },
+        exact weaken_union_right dX₂C },
       { have : ↑X₁ ∪ (↑X₂ \ {A} ∪ ↑X₃ \ {B}) ∪ {B} = ↑X₃ ∪ ({B} ∪ (↑X₁ ∪ ↑X₂ \ {A})),
           { rw [ @set.union_assoc Form,
                   set.union_assoc,
@@ -130,7 +127,7 @@ begin
                   set.union_comm,
                   set.union_assoc ] },
         rw this,
-        exact WEAK dX₃C },
+        exact weaken_union_right dX₃C },
     tidy,
   },
   case falsum : { rcases ih with ⟨⟨X',X'dF⟩⟩, use X', apply ⊥E X'dF, tidy },
@@ -161,7 +158,6 @@ open deduction
 Recursively define as the formulas above the last rule with the conclusion
 inserted-/
 def deduction.formulas : Π {X A}, X ≻ A → set Form
-| _ A (@weakening X _ Y XdA) := deduction.formulas XdA
 | X A (assumption mA) := {A}
 | X _ (@and_intro _ A B XdA XdB) := deduction.formulas XdA ∪ deduction.formulas XdB ∪ {A ⋀ B}
 | X _ (@and_left _ A B XdAB) := deduction.formulas XdAB ∪ {A}
@@ -202,5 +198,7 @@ example : inconsistent {p,q,¬(p ⋀ q)} :=
 -- TODO: finish chapter 4 exercises
 
 end exercises
+
+
 
 end nat_deduction

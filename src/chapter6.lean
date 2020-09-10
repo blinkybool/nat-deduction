@@ -10,7 +10,6 @@ def soundness {X : set Form} {A : Form} : X ⊢I A → X ⊨ A :=
 begin
   rintro ⟨XdA⟩,
   induction' XdA,
-  case weakening {exact boolean.valid_weakening ih},
   case assumption {tauto},
   case and_intro {apply boolean.and_iff.mpr, tidy },
   case and_left {rw boolean.and_iff at *, tidy },
@@ -26,6 +25,14 @@ begin
         apply ihA, simp, tidy,
         apply ihB, simp, tidy, },
   case falsum { intros M hM, specialize ih M hM, contradiction }
+end
+
+theorem not_provable_atomic : ∀ p : ℕ, ¬ (∅ ⊢I p) :=
+begin
+  rintros p hp,
+  apply absurd (soundness hp),
+  intro mp,
+  specialize mp ∅, simp * at *,
 end
 
 namespace intuitionistic

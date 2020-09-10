@@ -5,7 +5,6 @@ namespace nat_deduction
 /-- Inductive definition of a classical deduction X ≻ A (argument) from a set of Formulas X
 to a Formula A. This the same as the definition of a deduction + a double-negation elimination rule. -/
 inductive classical.deduction : set Form → Form → Type
-| weakening  {X} {A Y}     : classical.deduction X A → classical.deduction (X ∪ Y) A
 | assumption {X} {A}       : (A ∈ X) → classical.deduction X A
 | and_intro  {X} {A B}     : classical.deduction X A → classical.deduction X B → classical.deduction X (A ⋀ B)
 | and_left   {X} (A B)     : classical.deduction X (A ⋀ B) → classical.deduction X A
@@ -23,17 +22,53 @@ inductive classical.deduction : set Form → Form → Type
 -- Notation for deduction types
 infix ` ≻* `:60 := classical.deduction
 
+def classical.weakening {X Y A} : X ⊆ Y → X ≻* A → Y ≻* A :=
+begin
+  intros hXY XdA,
+  induction' XdA with X,
+  case assumption : {exact classical.deduction.assumption (hXY h)},
+  case and_intro : X A B _ _ ih₁ ih₂
+    { apply classical.deduction.and_intro,
+      exact ih₁ hXY,
+      exact ih₂ hXY },
+  case and_left : X A B ih
+    { apply classical.deduction.and_left, exact ih hXY },
+  case and_right : X A B ih
+    { apply classical.deduction.and_right, exact ih hXY },
+  case imp_intro : X A B _ ih
+    { apply classical.deduction.imp_intro,
+      apply ih, exact set.union_subset_union_left {A} hXY },
+  case imp_elim : X A B _ _ ih₁ ih₂
+    { apply classical.deduction.imp_elim,
+      exact ih₁ hXY,
+      exact ih₂ hXY },
+  case or_left : X A B _ ih
+    { apply classical.deduction.or_left, exact ih hXY },
+  case or_right : X A B _ ih
+    { apply classical.deduction.or_right, exact ih hXY },
+  case or_elim : X A B C _ _ _ ih ihA ihB {
+    apply classical.deduction.or_elim,
+    apply ih hXY,
+    apply ihA, exact set.union_subset_union_left _ hXY,
+    apply ihB, exact set.union_subset_union_left _ hXY },
+  case falsum : X A _ ih { apply classical.deduction.falsum, exact ih hXY },
+  case dne : X A { apply classical.deduction.dne, exact ih hXY }
+end
+
+def classical.weaken_union_left {Y X A} : X ≻ A → Y ∪ X ≻ A
+  := λ XdA, deduction.weakening (set.subset_union_right Y X) XdA
+
+def classical.weaken_union_right {Y X A} : X ≻ A → X ∪ Y ≻ A
+  := λ XdA, deduction.weakening (set.subset_union_left X Y) XdA
+
 -- Derived rules for negation
 def classical.deduction.neg_intro {X A}: X ∪ {A} ≻* ⊥ → X ≻* ¬A := classical.deduction.imp_intro
 def classical.deduction.neg_elim {X} (A) : X ≻* ¬A → X ≻* A → X ≻* ⊥ := classical.deduction.imp_elim A
 
 -- Derived rules which commute set unions
 def classical.deduction.imp_intro' {X A B} : ({A} ∪ X) ≻* B → X ≻* (A ⟹ B) := by {rw set.union_comm, exact classical.deduction.imp_intro}
-def classical.deduction.weakening' {X A Y} : X ≻* A → (Y ∪ X) ≻* A := by {rw set.union_comm, exact classical.deduction.weakening}
 
 -- Shorthand for deduction rules
-notation `WEAK*` := classical.deduction.weakening
-notation `WEAK'*` := classical.deduction.weakening'
 notation `⋀I*` := classical.deduction.and_intro
 notation `⋀E₁*` := classical.deduction.and_left
 notation `⋀E₂*` := classical.deduction.and_right
@@ -50,7 +85,7 @@ notation `DNE` := classical.deduction.dne
 
 def classical.deduction.excluded_middle {X A} : X ≻* (A ⋁ ¬A) :=
 begin
-  convert @classical.deduction.weakening ∅ _ X _, rw set.empty_union,
+  apply @classical.weakening ∅, exact set.empty_subset X,
   apply DNE,
   apply ¬I*,
   apply ¬E* (A ⋁ ¬A),

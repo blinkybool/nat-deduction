@@ -38,6 +38,12 @@ theorem sat_singleton {M : Model} {A : Form} :
 by split; tidy
 
 @[simp]
+theorem sat_empty {M : Model} : sat M ∅ :=
+begin
+  intros A mem, simp at *, contradiction
+end
+
+@[simp]
 theorem sat_union {M : Model} {X Y : set Form} : sat M (X ∪ Y) ↔ (sat M X ∧ sat M Y) :=
 begin
   split,

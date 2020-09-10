@@ -59,9 +59,9 @@ begin
   intros dAB dAC,
   apply ⟹I,
   apply ⋀I; apply ⟹E A,
-  apply WEAK dAB,
+  exact weaken_union_right dAB, 
   assump,
-  apply WEAK dAC,
+  exact weaken_union_right dAC, 
   assump
 end
 
@@ -70,9 +70,9 @@ begin
   intros dAB dBC,
   apply ⟹I,
   apply ⟹E B,
-  apply WEAK dBC,
+  exact weaken_union_right dBC,
   apply ⟹E A,
-  apply WEAK dAB,
+  apply weaken_union_right dAB,
   assump
 end
 
@@ -82,7 +82,7 @@ begin
   apply ⟹I,
   apply ⟹E B,
   apply ⟹E A,
-  apply WEAK dABC,
+  exact weaken_union_right dABC,
   apply ⋀E₁ A B, assump,
   apply ⋀E₂ A B, assump
 end
@@ -93,7 +93,7 @@ begin
   apply_rules [⟹I],
   apply ⟹E (A ⋀ B),
   rw set.union_assoc,
-  apply WEAK dAB_C,
+  exact weaken_union_right dAB_C,
   apply ⋀I; assump
 end
 
@@ -103,7 +103,7 @@ begin
   apply ⟹I,
   apply ⟹E A,
   apply ⟹E A,
-  apply WEAK dAAB,
+  exact weaken_union_right dAAB,
   all_goals {assump}
 end
 

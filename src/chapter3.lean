@@ -65,12 +65,12 @@ begin
     { apply ⋁I₁,
       apply ⋀I, 
         { apply ⋀E₁ _ (B ⋁ C),
-          apply WEAK dA_BC },
+          exact weaken_union_right dA_BC },
         assump },
     { apply ⋁I₂,
       apply ⋀I, 
         { apply ⋀E₁ _ (B ⋁ C),
-          apply WEAK dA_BC },
+          exact weaken_union_right dA_BC },
         assump },
 end
 
@@ -78,8 +78,8 @@ def modus_tollens : (X ≻ A ⟹ B) → (X ≻ ¬B) → (X ≻ ¬ A) :=
 begin
   intros dAB dnB,
   apply ¬I,
-  apply ¬E B, apply WEAK dnB,
-  apply ⟹E A, apply WEAK dAB,
+  apply ¬E B, exact weaken_union_right dnB,
+  apply ⟹E A, exact weaken_union_right dAB,
   assump
 end
 
@@ -88,7 +88,7 @@ begin
   intro dnA,
   apply ¬I,
   apply ¬E A,
-  apply WEAK dnA,
+  exact weaken_union_right dnA,
   apply ⋀E₁ A B, assump
 end
 
@@ -97,9 +97,9 @@ begin
   intros dAC dBC,
   apply ⟹I,
   apply ⋁E A B, assump,
-  apply ⟹E A, rw set.union_assoc, apply WEAK dAC,
+  apply ⟹E A, rw set.union_assoc, exact weaken_union_right dAC,
   assump,
-  apply ⟹E B, rw set.union_assoc, apply WEAK dBC,
+  apply ⟹E B, rw set.union_assoc, exact weaken_union_right dBC,
   assump
 end
 
@@ -109,7 +109,7 @@ begin
   apply ⋁E A B dAB,
   { apply ⊥E,
     apply ¬E A,
-    apply WEAK dnA,
+    exact weaken_union_right dnA,
     assump },
   assump
 end
