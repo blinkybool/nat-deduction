@@ -100,6 +100,16 @@ end
 
 notation `LEM` := classical.deduction.excluded_middle
 
+def intuitionistic_to_classical {X A} : X ≻ A → X ≻* A :=
+begin
+  intro XdA,
+  induction XdA,
+  case assumption : _ _ h { exact classical.deduction.assumption h },
+end
+
+
+-- instance intuitionistic_coe_classical {X A} : has_coe (X ≻ A) (X ≻* A) := 
+
 end nat_deduction
 
 /-- A tactic to produce a deduction of something like `X ∪ {A} ≻ A`,
